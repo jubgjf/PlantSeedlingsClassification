@@ -22,7 +22,7 @@ class config(object):
         self.maxiter_without_improvement = 1000  # 若1000轮没有优化则退出
 
         # 训练相关路径
-        self.save_path = './trains'
+        self.save_path = '../Trains'
         self.model_path = self.save_path + '/models/'
         self.log_dir = self.save_path + '/logs/'
 
