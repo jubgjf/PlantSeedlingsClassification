@@ -1,21 +1,48 @@
 import argparse
-import torch
 
 
 class Parser:
     """命令行参数解析器"""
 
     def __init__(self):
-        # 接收到的命令行参数，初始值是默认值
-        self.args = {
-            'aug': True,
-            'dev': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
-            'model': 'SENet',
-            'opt': 'Adam',
-            'lr': 1e-5,
-            'bs': 128,
-            'mwi': 1000
+        # 命令行参数 key 对应所有的合法值 value
+        # 合法值 value 的第一个值 value[0] 是参数的默认值
+        self.arg_available_values = {
+            'aug': ('None',),
+            'dev': ('cuda', 'cpu'),
+            'model': ('SENet', 'VGG', 'ResNet'),
+            'opt': ('Adam', 'SGD'),
+            'lr': (1e-5,),
+            'bs': (128,),
+            'mwi': (1000,)
         }
+
+        # 命令行参数提示信息
+        self.arg_help = {
+            'aug': 'data augmentation',
+            'dev': 'cuda or cpu',
+            'model': 'VGG/ResNet/SENet',
+            'opt': 'SGD/Adam',
+            'lr': 'learning rate',
+            'bs': 'batch size',
+            'mwi': 'max iter without improvement'
+        }
+
+        # 命令行参数类型
+        self.arg_type = {
+            'aug': str,
+            'dev': str,
+            'model': str,
+            'opt': str,
+            'lr': float,
+            'bs': int,
+            'mwi': int
+        }
+
+        # 接收到的命令行参数，初始值是默认值
+        self.args = {}
+        for k, v in self.arg_available_values.items():
+            self.args[k] = v[0]
 
         self.parse()
 
@@ -24,13 +51,9 @@ class Parser:
 
         p = argparse.ArgumentParser(description='基于 PyTorch 实现 VGG/ResNet/SENet 等结构')
 
-        p.add_argument('--aug', type=str, default='True', help='data augmentation (default: True)')
-        p.add_argument('--dev', type=str, default='cuda', help='cuda or cpu (default: cuda)')
-        p.add_argument('--model', type=str, default='SENet', help='VGG/ResNet/SENet (default: SENet)')
-        p.add_argument('--opt', type=str, default='Adam', help='SGD/Adam (default: Adam)')
-        p.add_argument('--lr', type=float, default=1e-5, help='learning rate (default: 1e-5)')
-        p.add_argument('--bs', type=int, default=128, help='batch size (default: 128)')
-        p.add_argument('--mwi', type=int, default=1000, help='max iter without improvement (default: 1000)')
+        for arg, arg_values in self.arg_available_values.items():
+            help_msg = self.arg_help[arg] + f' (default: {str(self.args[arg])})'
+            p.add_argument(f'--{arg}', type=self.arg_type[arg], default=self.args[arg], help=help_msg)
 
         args = p.parse_args()
 
@@ -39,39 +62,24 @@ class Parser:
     def legalise(self, args):
         """命令行参数合法化，对不合法的值使用默认值进行覆盖"""
 
-        if args.aug in ('True', 'False'):
-            self.args['aug'] = bool(args.aug)
-        else:
-            print(f'cannot recognize aug = `{args.aug}`, using default `{str(self.args["aug"])}`')
-
-        if args.dev == 'cuda':
-            self.args['dev'] = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        elif args.dev == 'cpu':
-            self.args['dev'] = torch.device(args.dev)
-        else:
-            print(f'cannot recognize dev = `{args.dev}`, using default `{str(self.args["dev"])}`')
-
-        if args.model in ('SENet', 'VGG', 'ResNet'):
-            self.args['model'] = args.model
-        else:
-            print(f'cannot recognize model = `{args.model}`, using default `{str(self.args["model"])}`')
-
-        if args.opt in ('Adam', 'SGD'):
-            self.args['opt'] = args.opt
-        else:
-            print(f'cannot recognize opt = `{args.opt}`, using default `{str(self.args["opt"])}`')
-
-        if args.lr > 0:
-            self.args['lr'] = args.lr
-        else:
-            print(f'cannot use lr = `{args.lr}`, using default `{str(self.args["lr"])}`')
-
-        if args.bs > 0:
-            self.args['bs'] = args.bs
-        else:
-            print(f'cannot use bs = `{args.bs}`, using default `{str(self.args["bs"])}`')
-
-        if args.mwi > 0:
-            self.args['mwi'] = args.mwi
-        else:
-            print(f'cannot use mwi = `{args.mwi}`, using default `{str(self.args["mwi"])}`')
+        for arg, arg_type in self.arg_type.items():
+            if arg_type == str:
+                if vars(args)[arg] in self.arg_available_values[arg]:
+                    # 解析出的参数的值在合法值集合中
+                    # 添加到结果
+                    self.args[arg] = vars(args)[arg]
+                else:
+                    # 解析出的参数的值不在合法值集合中
+                    # 输出错误信息，使用参数默认值
+                    print(f'cannot recognize {arg} = `{vars(args)[arg]}`, using default `{self.args[arg]}`')
+            elif arg_type == float or arg_type == int:
+                if vars(args)[arg] > 0:
+                    # 解析出的参数的值合法
+                    # 添加到结果
+                    self.args[arg] = vars(args)[arg]
+                else:
+                    # 解析出的参数的值不合法
+                    # 输出错误信息，使用参数默认值
+                    print(f'cannot use {arg} = `{vars(args)[arg]}`, using default `{self.args[arg]}`')
+            else:
+                print("===== ARGUMENT ERROR =====")

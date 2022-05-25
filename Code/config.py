@@ -14,7 +14,7 @@ class config(object):
         self.data_augmentation = args['aug']
 
         # 训练设置
-        self.device = args['dev']
+        self.device = torch.device('cuda' if torch.cuda.is_available() and args['dev'] == 'cuda' else 'cpu')
         self.model = args['model']
         self.optimizer = args['opt']
         self.learning_rate = args['lr']
