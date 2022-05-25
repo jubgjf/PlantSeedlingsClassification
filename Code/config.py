@@ -7,10 +7,10 @@ import torch
 class config(object):
     def __init__(self, args):
         # 数据的路径
-        self.data_path = ''
-        self.train_path = self.data_path + ''
+        self.data_path = '../Dataset/'
+        self.train_path = self.data_path + 'train/'
         self.dev_path = self.data_path + ''
-        self.test_path = self.data_path + ''
+        self.test_path = self.data_path + 'test/'
         self.data_augmentation = args['aug']
 
         # 训练设置
