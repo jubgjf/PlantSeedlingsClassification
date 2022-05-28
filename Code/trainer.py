@@ -1,5 +1,4 @@
 from dataset import getDataset
-from config import config
 from torch.utils.data import DataLoader
 from models import *
 import torch
@@ -10,34 +9,21 @@ import torch.nn.functional as F
 from sklearn import metrics
 import numpy as np
 import pandas as pd
-
+from transformers import AutoFeatureExtractor, SwinForImageClassification
+from transformers import Trainer
+from transformers import TrainingArguments
 
 class trainer():
     def __init__(self,config:config):
-        if config.model in ('VGG', 'ResNet', 'SENet'):
-            self.trainer_ = basicTrainer(config)
-        else:
-            self.trainer_ = selfTrainer(config)
+
+        self.trainer_ = basicTrainer(config)
+
 
     def train(self):
         self.trainer_.train()
 
     def test(self):
         self.trainer_.test()
-
-class selfTrainer():
-    def __init__(self,config):
-        pass
-
-    def train(self):
-        pass
-
-    def eval(self):
-        pass
-
-    def test(self):
-        pass
-
 
 
 
@@ -61,6 +47,8 @@ class basicTrainer():
             self.model = VGG(config, True).to(self.device)
         elif config.model == 'SENet':
             self.model = SENet18(config.class_num).to(self.device)
+        else:
+            self.model = SwinTransformer(config.class_num).to(self.device)
         self.learning_rate = config.learning_rate
         self.optimizer = config.optimizer
         if self.optimizer == 'SGD':

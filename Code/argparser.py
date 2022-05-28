@@ -10,7 +10,8 @@ class Parser:
         self.arg_available_values = {
             'aug': ('None', 'rot', 'flp', 'gsc', 'pst', 'slr'),
             'dev': ('cuda', 'cpu'),
-            'model': ('SENet', 'VGG', 'ResNet'),
+            'model': ('SENet', 'VGG', 'ResNet', 'SwinTransformer'),
+            'mode': ('train', 'test', 'both'),
             'opt': ('Adam', 'SGD'),
             'lr': (1e-5,),
             'bs': (128,),
@@ -20,8 +21,9 @@ class Parser:
         # 命令行参数提示信息
         self.arg_help = {
             'aug': 'data augmentation',
-            'dev': 'cuda or cpu',
-            'model': 'VGG/ResNet/SENet',
+            'dev': 'cuda/cpu',
+            'model': 'VGG/ResNet/SENet/SwinTransformer',
+            'mode': 'train/test/both',
             'opt': 'SGD/Adam',
             'lr': 'learning rate',
             'bs': 'batch size',
@@ -33,6 +35,7 @@ class Parser:
             'aug': str,
             'dev': str,
             'model': str,
+            'mode': str,
             'opt': str,
             'lr': float,
             'bs': int,
@@ -88,15 +91,18 @@ class Parser:
                 else:
                     print("===== ARGUMENT ERROR =====")
             else:
-                for va in vars(args)[arg]:
-                    if va in self.arg_available_values[arg]:
-                        # 解析出的参数的值在合法值集合中
-                        # 添加到结果
-                        if self.args[arg] == 'None':
-                            self.args[arg] = [va]
+                if vars(args)[arg] == 'None':
+                    self.args[arg] = vars(args)[arg]  # 'None'
+                else:
+                    for va in vars(args)[arg]:
+                        if va in self.arg_available_values[arg]:
+                            # 解析出的参数的值在合法值集合中
+                            # 添加到结果
+                            if self.args[arg] == 'None':
+                                self.args[arg] = [va]
+                            else:
+                                self.args[arg].append(va)
                         else:
-                            self.args[arg].append(va)
-                    else:
-                        # 解析出的参数的值不在合法值集合中
-                        # 输出错误信息，使用参数默认值
-                        print(f'cannot recognize {arg} = `{vars(args)[arg]}`, using default `{self.args[arg]}`')
+                            # 解析出的参数的值不在合法值集合中
+                            # 输出错误信息，使用参数默认值
+                            print(f'cannot recognize {arg} = `{vars(args)[arg]}`, using default `{self.args[arg]}`')

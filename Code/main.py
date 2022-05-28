@@ -4,7 +4,7 @@ from config import config
 from dataset import getDataset
 from trainer import trainer
 if __name__ == '__main__':
-    os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '1'
     parser = Parser()
     print(parser.args)
     config = config(parser.args)

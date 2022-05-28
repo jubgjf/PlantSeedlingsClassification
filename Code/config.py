@@ -14,6 +14,7 @@ class config(object):
         self.train_dev_frac = 9  # train 和 dev 的比例
         self.device = torch.device('cuda' if torch.cuda.is_available() and args['dev'] == 'cuda' else 'cpu')
         self.model = args['model']
+        self.mode = args['mode']
         self.optimizer = args['opt']
         self.learning_rate = args['lr']
         self.batch_size = args['bs']
@@ -23,7 +24,10 @@ class config(object):
 
         # 训练相关路径
         self.save_path = '../Trains'
+
+        # 模型保存路径
         self.model_saved = self.save_path + '/models/' + self.model + '.pkl'
         self.log_dir = self.save_path + '/logs/'
 
+        # 输出路径
         self.output_path = '../out/' + self.model + '_submission.csv'
