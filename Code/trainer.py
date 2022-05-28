@@ -126,8 +126,8 @@ class basicTrainer():
             self.scheduler.step()
         writer.close()
         end_time = time.time()
-        print("Train Time : {:.3f} min , The Best Acc in Dev : {} % , The Best f1-score in Dev : {}".format(
-            ((float)((end_time - start_time)) / 60), dev_best_acc, dev_best_f1score))
+        print("Train Time : {:.3f} min , The Best Micro F1 Score in Dev : {} % , The Best Macro f1-score in Dev : {}".format(
+            ((float)((end_time - start_time)) / 60), dev_best_micro_f1score, dev_best_macro_f1score))
 
     def eval(self):
         self.model.eval()
