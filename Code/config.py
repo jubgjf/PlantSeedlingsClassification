@@ -6,7 +6,7 @@ class config(object):
         # 数据的路径
         self.data_path = '../Dataset/'
         self.train_path = self.data_path + 'train/'
-        self.dev_path = self.data_path + ''
+        self.dev_path = self.data_path + 'train/'
         self.test_path = self.data_path + 'test/'
         self.data_augmentation = args['aug']
 
