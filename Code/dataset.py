@@ -12,15 +12,21 @@ def getDataset(config):
         config: 模型配置
 
     Returns:
-        一个 tuple，内部的元素是 (trainDataset, devDataset, testDataset)
-
+        一个 tuple，内部的元素是
+        (trainDataset, devDataset, testDataset), (label_str2int, label_int2str)
+        其中 *Dataset 是数据迭代器
+        label_str2int 和 label_int2str 是标签和 int 的相互转换的字典
     """
 
-    trainDataset = myDataset(buildData(config, "train"))
-    devDataset = myDataset(buildData(config, "dev"))
-    testDataset = myDataset(buildData(config, "test"))
+    trainBuildData = buildData(config, "train")
+    devBuildData = buildData(config, "dev")
+    testBuildData = buildData(config, "test")
 
-    return trainDataset, devDataset, testDataset
+    trainDataset = myDataset(trainBuildData, "train_dev")
+    devDataset = myDataset(devBuildData, "train_dev")
+    testDataset = myDataset(testBuildData, "test")
+
+    return (trainDataset, devDataset, testDataset), (trainBuildData.label_str2int, trainBuildData.label_int2str)
 
 
 class buildData():
@@ -34,25 +40,46 @@ class buildData():
         """
 
         # 双向索引 label
-        label_int2str = {}  # { 0: "Black-grass", 1: "Charlock", ...}
-        label_str2int = {}  # { "Black-grass": 0, "Charlock": 1, ...}
+        self.label_int2str = {}  # { 0: "Black-grass", 1: "Charlock", ...}
+        self.label_str2int = {}  # { "Black-grass": 0, "Charlock": 1, ...}
 
-        # TODO choice=='dev' or 'test'
-        path = config.train_path
         path_label = []
+
+        # ===== train/dev =====
+        path = config.train_path
+        path_label_tmp = []
         for label_int, label_dir in enumerate(os.listdir(path)):
-            label_int2str[label_int] = label_dir
-            label_str2int[label_dir] = label_int
-            image_names = os.listdir(path + label_dir)
+            self.label_int2str[label_int] = label_dir
+            self.label_str2int[label_dir] = label_int
+            if choice == 'train' or choice == 'dev':
+                image_names = os.listdir(path + label_dir)
+                for image_name in image_names:
+                    path_label_tmp.append((path + label_dir + "/" + image_name, label_int))
+        if choice == 'train' or choice == 'dev':
+            for index, item in enumerate(path_label_tmp):
+                if choice == 'train' and index % (config.train_dev_frac + 1) < config.train_dev_frac:
+                    path_label.append(item)
+                elif choice == 'dev' and index % (config.train_dev_frac + 1) >= config.train_dev_frac:
+                    path_label.append(item)
+
+        # ===== test =====
+        elif choice == 'test':
+            path = config.test_path
+            image_names = os.listdir(path)
             for image_name in image_names:
-                path_label.append((path + label_dir + "/" + image_name, label_int))
+                path_label.append((path + image_name, image_name))
 
         # 根据 config 进行数据增强
         aug = self.dataAugment(config)
 
-        # buildData.Data 为 List, List 中每一项为二元组 (tensor, label)
-        self.Data = [(aug(Image.open(data[0]).convert('RGB')), data[1]) for data in path_label]
-        self.length = len(self.Data)
+        if choice == 'train' or choice == 'dev':
+            # 当 choice 为 "train" 或 "dev" 时：Data 为 list, list 中每一项为二元组 (tensor, label)
+            self.Data = [(aug(Image.open(data[0]).convert('RGB')), data[1]) for data in path_label]
+            self.length = len(self.Data)
+        elif choice == 'test':
+            # 当 choice 为 "test" 时：Data 为 list, list 中每一项为二元组 (tensor, image_name)
+            self.Data = [(aug(Image.open(data[0]).convert('RGB')), data[1]) for data in path_label]
+            self.length = len(self.Data)
 
     def dataAugment(self, config):
         """
@@ -81,7 +108,7 @@ class buildData():
                 trans.append(transforms.RandomPosterize(bits=2))  # 随机分色
             if 'slt' in config.data_augmentation:
                 trans.append(transforms.RandomSolarize(threshold=192.0))  # 随机曝光
-        trans.append(transforms.Resize(100))  # 缩放到 100x100
+        trans.append(transforms.Resize((224, 224)))  # 缩放到 224x224
         trans.append(transforms.ToTensor())
 
         return transforms.Compose(trans)
@@ -92,8 +119,15 @@ class myDataset(dataset.Dataset):
     对Dataset重写
     """
 
-    def __init__(self, buildData):
+    def __init__(self, buildData, choice):
+        """
+        Args:
+            buildData: buildData 的一个实例
+            choice: 只能取值为 "train_dev" 或 "test"
+        """
+
         super(myDataset, self).__init__()
+        self.choice = choice
         self.Data = buildData.Data
         self.length = buildData.length
 
@@ -102,8 +136,20 @@ class myDataset(dataset.Dataset):
         return self.length
 
     def __getitem__(self, item):
-        inputs = {
-            'data': self.Data[item][0],
-            'label': self.Data[item][1]
-        }
+        if self.choice == 'train_dev':
+            inputs = {
+                'data': self.Data[item][0],
+                'label': self.Data[item][1]
+            }
+        elif self.choice == 'test':
+            inputs = {
+                'data': self.Data[item][0],
+                'name': self.Data[item][1]
+            }
+        else:
+            # 不应该到这个分支
+            inputs = {
+                'data': self.Data[item][0],
+                'label': self.Data[item][1]
+            }
         return inputs

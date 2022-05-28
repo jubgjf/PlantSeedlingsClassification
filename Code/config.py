@@ -1,6 +1,3 @@
-from models import VGG
-from models import ResNet
-from models import SENet
 import torch
 
 
@@ -14,14 +11,19 @@ class config(object):
         self.data_augmentation = args['aug']
 
         # 训练设置
+        self.train_dev_frac = 9  # train 和 dev 的比例
         self.device = torch.device('cuda' if torch.cuda.is_available() and args['dev'] == 'cuda' else 'cpu')
         self.model = args['model']
         self.optimizer = args['opt']
         self.learning_rate = args['lr']
         self.batch_size = args['bs']
-        self.maxiter_without_improvement = args['mwi']
+        self.epoch = args['epoch']
+        self.maxiter_without_improvement = 1000
+        self.class_num = 12
 
         # 训练相关路径
         self.save_path = '../Trains'
-        self.model_path = self.save_path + '/models/'
+        self.model_saved = self.save_path + '/models/' + self.model + '.pkl'
         self.log_dir = self.save_path + '/logs/'
+
+        self.output_path = '../out/' + self.model + '_submission.csv'

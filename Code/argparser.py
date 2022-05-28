@@ -14,7 +14,7 @@ class Parser:
             'opt': ('Adam', 'SGD'),
             'lr': (1e-5,),
             'bs': (128,),
-            'mwi': (1000,)
+            'epoch': (1000,)
         }
 
         # 命令行参数提示信息
@@ -25,7 +25,7 @@ class Parser:
             'opt': 'SGD/Adam',
             'lr': 'learning rate',
             'bs': 'batch size',
-            'mwi': 'max iter without improvement'
+            'epoch': 'epoch'
         }
 
         # 命令行参数类型
@@ -36,7 +36,7 @@ class Parser:
             'opt': str,
             'lr': float,
             'bs': int,
-            'mwi': int
+            'epoch': int
         }
 
         # 接收到的命令行参数，初始值是默认值
