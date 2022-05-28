@@ -56,6 +56,7 @@ class basicTrainer():
         elif self.optimizer == 'Adam':
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         # self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.9)
+        # 效果不好的话可以注释掉
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, 5, gamma=0.1, last_epoch=-1)
 
 

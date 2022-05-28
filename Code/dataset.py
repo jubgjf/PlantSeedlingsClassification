@@ -2,6 +2,7 @@ import os
 import torch.utils.data.dataset as dataset
 from PIL import Image
 from torchvision.transforms import transforms
+from transformers import AutoFeatureExtractor
 
 
 def getDataset(config):
@@ -22,9 +23,13 @@ def getDataset(config):
     devBuildData = buildData(config, "dev")
     testBuildData = buildData(config, "test")
 
-    trainDataset = myDataset(trainBuildData, "train_dev")
-    devDataset = myDataset(devBuildData, "train_dev")
-    testDataset = myDataset(testBuildData, "test")
+    isTransformer = False
+    if config.model == "SwinTransformer":
+        isTransformer = True
+
+    trainDataset = myDataset(trainBuildData, "train_dev", isTransformer)
+    devDataset = myDataset(devBuildData, "train_dev", isTransformer)
+    testDataset = myDataset(testBuildData, "test", isTransformer)
 
     return (trainDataset, devDataset, testDataset), (trainBuildData.label_str2int, trainBuildData.label_int2str)
 
@@ -119,37 +124,45 @@ class myDataset(dataset.Dataset):
     对Dataset重写
     """
 
-    def __init__(self, buildData, choice):
+    def __init__(self, buildData, choice: str, isTransformer: bool):
         """
         Args:
             buildData: buildData 的一个实例
             choice: 只能取值为 "train_dev" 或 "test"
+            isTransformer: 模型是否是 SwinTransformer
         """
 
         super(myDataset, self).__init__()
         self.choice = choice
+        self.isTransformer = isTransformer
         self.Data = buildData.Data
         self.length = buildData.length
+        if self.isTransformer:
+            self.feature_extractor = AutoFeatureExtractor.from_pretrained("microsoft/swin-tiny-patch4-window7-224")
 
     def __len__(self):
         assert self.length >= 0
         return self.length
 
     def __getitem__(self, item):
+        data = self.Data[item][0]
+        if self.isTransformer:
+            data = self.feature_extractor(self.Data[item][0], return_tensors="pt")
+
         if self.choice == 'train_dev':
             inputs = {
-                'data': self.Data[item][0],
+                'data': data,
                 'label': self.Data[item][1]
             }
         elif self.choice == 'test':
             inputs = {
-                'data': self.Data[item][0],
+                'data': data,
                 'name': self.Data[item][1]
             }
         else:
             # 不应该到这个分支
             inputs = {
-                'data': self.Data[item][0],
+                'data': data,
                 'label': self.Data[item][1]
             }
         return inputs
