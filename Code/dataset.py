@@ -147,7 +147,7 @@ class myDataset(dataset.Dataset):
     def __getitem__(self, item):
         data = self.Data[item][0]
         if self.isTransformer:
-            data = self.feature_extractor(self.Data[item][0], return_tensors="pt")
+            data = self.feature_extractor(self.Data[item][0], return_tensors="pt").data['pixel_values'].squeeze(0)
 
         if self.choice == 'train_dev':
             inputs = {

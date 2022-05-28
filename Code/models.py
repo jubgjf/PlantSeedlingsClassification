@@ -454,12 +454,14 @@ def SENet152(n_classes: int):
 class SwinTransformer(nn.Module):
     def __init__(self, n_classes):
         super(SwinTransformer, self).__init__()
-        # self.feature_extractor = AutoFeatureExtractor.from_pretrained("microsoft/swin-tiny-patch4-window7-224")
+        self.feature_extractor = AutoFeatureExtractor.from_pretrained("microsoft/swin-tiny-patch4-window7-224")
         self.model = SwinForImageClassification.from_pretrained("microsoft/swin-tiny-patch4-window7-224")
         self.fc = nn.Linear(1000, n_classes)
 
     def forward(self, inputs):
-        # inputs = self.feature_extractor(inputs, return_tensors="pt")
+        for tensor in inputs.cpu():
+            tensor_pro = self.feature_extractor(tensor, return_tensors="pt")
+
         logits = self.model(inputs).logits
         outputs = self.fc(logits)
         outputs = F.softmax(outputs, dim=1)
