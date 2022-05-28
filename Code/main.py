@@ -9,5 +9,10 @@ if __name__ == '__main__':
     print(parser.args)
     config = config(parser.args)
     trainer = trainer(config)
-    trainer.train()
-    trainer.test()
+    if config.mode == 'train':
+        trainer.train()
+    elif config.mode == 'test':
+        trainer.test()
+    else:
+        trainer.train()
+        trainer.test()
