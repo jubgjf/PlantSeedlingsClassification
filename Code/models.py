@@ -341,9 +341,11 @@ class SEBottleNeck(nn.Module):
         x = self.bottleneck(input)
         if self.downsample:
             residual = self.downsample(residual)
+
         origin_x = x
         x = self.seblock(x)
         x = x.view(x.shape[0], x.shape[1], 1, 1) * origin_x
+
         x += residual
         x = self.relu(x)
         return x

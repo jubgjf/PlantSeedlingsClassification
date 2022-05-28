@@ -67,7 +67,8 @@ class basicTrainer():
             self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate)
         elif self.optimizer == 'Adam':
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
-        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.9)
+        # self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.9)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, 5, gamma=0.1, last_epoch=-1)
 
 
     def train(self):
