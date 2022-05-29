@@ -13,7 +13,7 @@ class Parser:
             'model': ('SENet', 'VGG', 'ResNet', 'SwinTransformer'),
             'mode': ('train', 'test', 'both'),
             'opt': ('Adam', 'SGD'),
-            'lr': (1e-5,),
+            'lr': (1e-4,),
             'bs': (128,),
             'epoch': (1000,)
         }
