@@ -11,7 +11,7 @@ class config(object):
         self.data_augmentation = args['aug']
 
         # 训练设置
-        self.train_dev_frac = 9  # train 和 dev 的比例
+        self.fold_k = args['kf']  # k 折交叉验证的 k 值
         self.device = torch.device('cuda' if torch.cuda.is_available() and args['dev'] == 'cuda' else 'cpu')
         self.model = args['model']
         self.mode = args['mode']
