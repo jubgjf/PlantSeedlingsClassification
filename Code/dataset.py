@@ -44,6 +44,9 @@ class buildData():
             choice: 数据集类型，只能是 "train", "dev", "test" 之一
         """
 
+        self.Data = []
+        self.length = 0
+
         # 双向索引 label
         self.label_int2str = {}  # { 0: "Black-grass", 1: "Charlock", ...}
         self.label_str2int = {}  # { "Black-grass": 0, "Charlock": 1, ...}
@@ -75,16 +78,14 @@ class buildData():
                 path_label.append((path + image_name, image_name))
 
         # 根据 config 进行数据增强
-        aug = self.dataAugment(config)
+        trans_with_aug, trans_no_aug = self.dataAugment(config)
 
-        if choice == 'train' or choice == 'dev':
-            # 当 choice 为 "train" 或 "dev" 时：Data 为 list, list 中每一项为二元组 (tensor, label)
-            self.Data = [(aug(Image.open(data[0]).convert('RGB')), data[1]) for data in path_label]
-            self.length = len(self.Data)
-        elif choice == 'test':
-            # 当 choice 为 "test" 时：Data 为 list, list 中每一项为二元组 (tensor, image_name)
-            self.Data = [(aug(Image.open(data[0]).convert('RGB')), data[1]) for data in path_label]
-            self.length = len(self.Data)
+        # 当 choice 为 "train" 或 "dev" 时：Data 为 list, list 中每一项为二元组 (tensor, label)
+        # 当 choice 为 "test" 时：Data 为 list, list 中每一项为二元组 (tensor, image_name)
+        for data in path_label:
+            self.Data.append((trans_with_aug(Image.open(data[0]).convert('RGB')), data[1]))
+            self.Data.append((trans_no_aug(Image.open(data[0]).convert('RGB')), data[1]))
+        self.length = len(self.Data)
 
     def dataAugment(self, config):
         """
@@ -97,26 +98,29 @@ class buildData():
             返回 transforms.Compose
         """
 
-        trans = []
+        trans_with_aug = []  # 有增强的 transform
+        trans_no_aug = []  # 没有增强的 transform
+
         if config.data_augmentation == 'None':
             pass
         else:
             if 'rot' in config.data_augmentation:
                 # TODO 旋转会导致图片出现大量的 0，不知道为什么，需要修一下
-                trans.append(transforms.RandomRotation(degrees=(0, 180)))  # 随机旋转
+                trans_with_aug.append(transforms.RandomRotation(degrees=(0, 180)))  # 随机旋转
             if 'flp' in config.data_augmentation:
-                trans.append(transforms.RandomHorizontalFlip())  # 随机水平翻转
-                trans.append(transforms.RandomVerticalFlip())  # 随机垂直翻转
-            if 'gsc' in config.data_augmentation:
-                trans.append(transforms.RandomGrayscale())  # 随机转灰度图
+                trans_with_aug.append(transforms.RandomHorizontalFlip())  # 随机水平翻转
+                trans_with_aug.append(transforms.RandomVerticalFlip())  # 随机垂直翻转
             if 'pst' in config.data_augmentation:
-                trans.append(transforms.RandomPosterize(bits=2))  # 随机分色
+                trans_with_aug.append(transforms.RandomPosterize(bits=2))  # 随机分色
             if 'slt' in config.data_augmentation:
-                trans.append(transforms.RandomSolarize(threshold=192.0))  # 随机曝光
-        trans.append(transforms.Resize((224, 224)))  # 缩放到 224x224
-        trans.append(transforms.ToTensor())
+                trans_with_aug.append(transforms.RandomSolarize(threshold=192.0))  # 随机曝光
+        trans_with_aug.append(transforms.Resize((224, 224)))  # 缩放到 224x224
+        trans_with_aug.append(transforms.ToTensor())
 
-        return transforms.Compose(trans)
+        trans_no_aug.append(transforms.Resize((224, 224)))  # 缩放到 224x224
+        trans_no_aug.append(transforms.ToTensor())
+
+        return transforms.Compose(trans_with_aug), transforms.Compose(trans_no_aug)
 
 
 class myDataset(dataset.Dataset):

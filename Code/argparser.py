@@ -8,7 +8,7 @@ class Parser:
         # 命令行参数 key 对应所有的合法值 value
         # 合法值 value 的第一个值 value[0] 是参数的默认值
         self.arg_available_values = {
-            'aug': ('None', 'rot', 'flp', 'gsc', 'pst', 'slr'),
+            'aug': ('None', 'rot', 'flp', 'pst', 'slr'),
             'dev': ('cuda', 'cpu'),
             'model': ('SENet', 'VGG', 'ResNet', 'SwinTransformer'),
             'mode': ('train', 'test', 'both'),
