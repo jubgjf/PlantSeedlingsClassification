@@ -30,40 +30,55 @@ def getDataset(config):
         label_str2int 和 label_int2str 是标签和 int 的相互转换的字典
     """
 
-    traindevBuildData = buildData(config, "train_dev")
-    testBuildData = buildData(config, "test")
+    if config.fold_k == 1:
+        trainBuildData = buildData(config, "train")
+        devBuildData = buildData(config, "dev")
+        testBuildData = buildData(config, "test")
 
-    isTransformer = False
-    if config.model == "SwinTransformer":
-        isTransformer = True
+        isTransformer = False
+        if config.model == "SwinTransformer":
+            isTransformer = True
 
-    traindevDataset = myDataset(traindevBuildData, "train_dev", isTransformer)
-    testDataset = myDataset(testBuildData, "test", isTransformer)
+        trainDataset = myDataset(trainBuildData, "train_dev", isTransformer)
+        devDataset = myDataset(devBuildData, "train_dev", isTransformer)
+        testDataset = myDataset(testBuildData, "test", isTransformer)
 
-    # 对 traindevDataset 进行 k 折交叉验证分割
-    k = config.fold_k
+        return (trainDataset, devDataset, testDataset), (trainBuildData.label_str2int, trainBuildData.label_int2str)
+    else:
+        traindevBuildData = buildData(config, "train_dev")
+        testBuildData = buildData(config, "test")
 
-    # 将所有数据均等分到 k 个桶中
-    buckets_k = []
-    for i in range(k):
-        buckets_k.append([])
-    for index, data in enumerate(traindevDataset):
+        isTransformer = False
+        if config.model == "SwinTransformer":
+            isTransformer = True
+
+        traindevDataset = myDataset(traindevBuildData, "train_dev", isTransformer)
+        testDataset = myDataset(testBuildData, "test", isTransformer)
+
+        # 对 traindevDataset 进行 k 折交叉验证分割
+        k = config.fold_k
+
+        # 将所有数据均等分到 k 个桶中
+        buckets_k = []
         for i in range(k):
-            if index % k == i:
-                buckets_k[i].append(data)
+            buckets_k.append([])
+        for index, data in enumerate(traindevDataset):
+            for i in range(k):
+                if index % k == i:
+                    buckets_k[i].append(data)
 
-    # 每次将一个桶作为 dev，其他桶合并作为 train
-    kfoldDataset = []
-    for i in range(k):
-        kfoldDataset.append([])
-    for i in range(k):
-        kfoldDataset[i].append(buckets_k[i])  # kfoldDataset[i][0] = dev
-        kfoldDataset[i].append([])  # kfoldDataset[i][1] = train
-        for j in range(k):
-            if i != j:
-                kfoldDataset[i][1] += buckets_k[j]
+        # 每次将一个桶作为 dev，其他桶合并作为 train
+        kfoldDataset = []
+        for i in range(k):
+            kfoldDataset.append([])
+        for i in range(k):
+            kfoldDataset[i].append(buckets_k[i])  # kfoldDataset[i][0] = dev
+            kfoldDataset[i].append([])  # kfoldDataset[i][1] = train
+            for j in range(k):
+                if i != j:
+                    kfoldDataset[i][1] += buckets_k[j]
 
-    return (kfoldDataset, testDataset), (traindevBuildData.label_str2int, traindevBuildData.label_int2str)
+        return (kfoldDataset, testDataset), (traindevBuildData.label_str2int, traindevBuildData.label_int2str)
 
 
 class buildData():
@@ -76,42 +91,85 @@ class buildData():
             choice: 数据集类型，只能是 "train_dev", "test" 之一
         """
 
-        self.Data = []
-        self.length = 0
+        if config.fold_k == 1:
+            # 双向索引 label
+            self.label_int2str = {}  # { 0: "Black-grass", 1: "Charlock", ...}
+            self.label_str2int = {}  # { "Black-grass": 0, "Charlock": 1, ...}
 
-        path = config.train_path
+            path_label = []
 
-        # 双向索引 label
-        self.label_int2str = {}  # { 0: "Black-grass", 1: "Charlock", ...}
-        self.label_str2int = {}  # { "Black-grass": 0, "Charlock": 1, ...}
-        for label_int, label_dir in enumerate(os.listdir(path)):
-            self.label_int2str[label_int] = label_dir
-            self.label_str2int[label_dir] = label_int
-
-        path_label = []
-        # ===== train_dev =====
-        if choice == 'train_dev':
+            # ===== train/dev =====
+            path = config.train_path
+            path_label_tmp = []
             for label_int, label_dir in enumerate(os.listdir(path)):
-                image_names = os.listdir(path + label_dir)
+                self.label_int2str[label_int] = label_dir
+                self.label_str2int[label_dir] = label_int
+                if choice == 'train' or choice == 'dev':
+                    image_names = os.listdir(path + label_dir)
+                    for image_name in image_names:
+                        path_label_tmp.append((path + label_dir + "/" + image_name, label_int))
+            if choice == 'train' or choice == 'dev':
+                for index, item in enumerate(path_label_tmp):
+                    if choice == 'train' and index % (config.train_dev_frac + 1) < config.train_dev_frac:
+                        path_label.append(item)
+                    elif choice == 'dev' and index % (config.train_dev_frac + 1) >= config.train_dev_frac:
+                        path_label.append(item)
+
+            # ===== test =====
+            elif choice == 'test':
+                path = config.test_path
+                image_names = os.listdir(path)
                 for image_name in image_names:
-                    path_label.append((path + label_dir + "/" + image_name, label_int))
-        # ===== test =====
-        elif choice == 'test':
-            path = config.test_path
-            image_names = os.listdir(path)
-            for image_name in image_names:
-                path_label.append((path + image_name, image_name))
+                    path_label.append((path + image_name, image_name))
 
-        # 根据 config 进行数据增强
-        trans_with_aug, trans_no_aug = self.dataAugment(config)
+            # 根据 config 进行数据增强
+            aug = self.dataAugment(config)
 
-        # 当 choice 为 "train_dev" 时：Data 为 list, list 中每一项为二元组 (tensor, label)
-        # 当 choice 为 "test"      时：Data 为 list, list 中每一项为二元组 (tensor, image_name)
-        for data in path_label:
-            # self.Data.append(data)  # 本行用于调试，减少 IO 次数
-            self.Data.append((trans_with_aug(Image.open(data[0]).convert('RGB')), data[1]))
-            self.Data.append((trans_no_aug(Image.open(data[0]).convert('RGB')), data[1]))
-        self.length = len(self.Data)
+            if choice == 'train' or choice == 'dev':
+                # 当 choice 为 "train" 或 "dev" 时：Data 为 list, list 中每一项为二元组 (tensor, label)
+                self.Data = [(aug(Image.open(data[0]).convert('RGB')), data[1]) for data in path_label]
+                self.length = len(self.Data)
+            elif choice == 'test':
+                # 当 choice 为 "test" 时：Data 为 list, list 中每一项为二元组 (tensor, image_name)
+                self.Data = [(aug(Image.open(data[0]).convert('RGB')), data[1]) for data in path_label]
+                self.length = len(self.Data)
+        else:
+            self.Data = []
+            self.length = 0
+
+            path = config.train_path
+
+            # 双向索引 label
+            self.label_int2str = {}  # { 0: "Black-grass", 1: "Charlock", ...}
+            self.label_str2int = {}  # { "Black-grass": 0, "Charlock": 1, ...}
+            for label_int, label_dir in enumerate(os.listdir(path)):
+                self.label_int2str[label_int] = label_dir
+                self.label_str2int[label_dir] = label_int
+
+            path_label = []
+            # ===== train_dev =====
+            if choice == 'train_dev':
+                for label_int, label_dir in enumerate(os.listdir(path)):
+                    image_names = os.listdir(path + label_dir)
+                    for image_name in image_names:
+                        path_label.append((path + label_dir + "/" + image_name, label_int))
+            # ===== test =====
+            elif choice == 'test':
+                path = config.test_path
+                image_names = os.listdir(path)
+                for image_name in image_names:
+                    path_label.append((path + image_name, image_name))
+
+            # 根据 config 进行数据增强
+            trans_with_aug, trans_no_aug = self.dataAugment(config)
+
+            # 当 choice 为 "train_dev" 时：Data 为 list, list 中每一项为二元组 (tensor, label)
+            # 当 choice 为 "test"      时：Data 为 list, list 中每一项为二元组 (tensor, image_name)
+            for data in path_label:
+                # self.Data.append(data)  # 本行用于调试，减少 IO 次数
+                self.Data.append((trans_with_aug(Image.open(data[0]).convert('RGB')), data[1]))
+                self.Data.append((trans_no_aug(Image.open(data[0]).convert('RGB')), data[1]))
+            self.length = len(self.Data)
 
     def dataAugment(self, config):
         """
