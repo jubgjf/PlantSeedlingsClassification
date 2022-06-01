@@ -27,7 +27,7 @@ class config(object):
         self.save_path = '../Trains'
 
         # 模型保存路径
-        self.model_saved = self.save_path + '/models/' + self.model + '.pkl'
+        self.model_saved = self.save_path + '/models/' + self.model + '_' + '_'.join(self.data_augmentation) + '.pkl'
         self.log_dir = self.save_path + '/logs/'
 
         # 输出路径

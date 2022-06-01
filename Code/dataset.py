@@ -32,7 +32,14 @@ def getDataset(config):
         ================================================================================
 
         当 config.fold_k != 1 时，不用 k 折交叉验证，使用 config 中的 train_dev_frac 比例进行分割，
-        此时返回的数据结构是 (train_dataset, dev_dataset, test_dataset), (label_str2int, label_int2str)
+        此时返回的数据结构是 (train_dev_dataset, test_dataset), (label_str2int, label_int2str)
+
+        其中 train_dev_dataset 是 train 和 dev 的数据迭代器，结构为
+        [
+            (train_dataset, dev_dataset)
+        ]
+
+        相当于 config.fold_k == 1 的特殊情况
 
         ================================================================================
 
@@ -55,7 +62,9 @@ def getDataset(config):
         test_data = build_test_data(config)
         test_dataset = MyDataset(test_data, "test", is_transformer)
 
-        return (train_dataset, dev_dataset, test_dataset), (label_str2int, label_int2str)
+        train_dev_dataset = [(train_dataset, dev_dataset)]
+
+        return (train_dev_dataset, test_dataset), (label_str2int, label_int2str)
     else:
         # 用 k 折交叉验证，使用 config 中的 fold_k 作为 k 的值
 
@@ -208,7 +217,7 @@ def build_test_data(config) -> list[tuple[Any, str]]:
     for image_name in image_names:
         path_name.append((path + image_name, image_name))
 
-    _, trans_no_aug = data_augment(config)
+    trans_with_aug, trans_no_aug = data_augment(config)
 
     data = []  # data 每一项为二元组 (tensor, name)
     if REDUCE_IO_DEBUG:
@@ -216,8 +225,8 @@ def build_test_data(config) -> list[tuple[Any, str]]:
             data.append(pn)  # 本行用于调试，减少 IO 次数
     else:
         for pn in path_name:
+            data.append((trans_with_aug(Image.open(pn[0]).convert('RGB')), pn[1]))
             data.append((trans_no_aug(Image.open(pn[0]).convert('RGB')), pn[1]))
-
     return data
 
 
