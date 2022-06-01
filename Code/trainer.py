@@ -70,9 +70,10 @@ class basicTrainer():
         last_improve = 0  # 记录上一次dev的loss下降时的批次
         flag = False  # 是否结束训练
         writer = [SummaryWriter(logdir=self.log_dir[i]) for i in range(self.fold_k)]
-        for epoch in range(self.epoch):
-            print("Epoch [{}/{}]".format(epoch + 1, self.epoch))
-            for i in range(self.fold_k):
+        for i in range(self.fold_k):
+            print("K Fold [{}/{}]".format(i, self.fold_k))
+            for epoch in range(self.epoch):
+                print("Epoch [{}/{}]".format(epoch + 1, self.epoch))
                 for index, data in enumerate(self.trainDataLoader[i]):
                     trains = data['data'].to(self.device)
                     labels = data['label'].to(self.device)
@@ -110,14 +111,11 @@ class basicTrainer():
                         break
                 if flag:
                     break
-            if flag:
-                break
-            for scheduler in self.scheduler:
-                scheduler.step()
+            self.scheduler[i].step()
         for writer_ in writer:
             writer_.close()
         end_time = time.time()
-        print("Train Time : {:.3f} min , The Best Micro F1 Score in Dev : {} % , The Best Macro f1-score in Dev : {}".format(
+        print("Train Time : {:.3f} min , The Best Micro F1 Score in Dev : {}, The Best Macro f1-score in Dev : {}".format(
             ((float)((end_time - start_time)) / 60), dev_best_micro_f1score, dev_best_macro_f1score))
 
     def eval(self, index):
@@ -129,14 +127,7 @@ class basicTrainer():
             for index_, data in enumerate(self.devDataLoader[index]):
                 trains = data['data'].to(self.device)
                 labels = data['label'].to(self.device)
-
-                outputs = None
-                for model in self.model:
-                    if outputs == None:
-                        outputs = torch.argmax(model(trains).detach().cpu(), dim=1).unsqueeze(1)
-                    else:
-                        outputs = torch.cat((outputs, torch.argmax(model(trains).detach().cpu(), dim=1).unsqueeze(1)), dim=1)
-                outputs = torch.mode(outputs, dim=1)[0]
+                outputs = torch.argmax(self.model[index](trains).detach().cpu(), dim=1).unsqueeze(1)
                 ground_truth = labels.cpu().data.numpy()
                 predict_labels = outputs.numpy()
                 labels_all = np.append(labels_all, ground_truth)
@@ -152,11 +143,9 @@ class basicTrainer():
             model.eval()
         name_all = np.array([],dtype=str)
         predict_all = np.array([], dtype=int)
-
         with torch.no_grad():
             for index, data in enumerate(self.testDataLoader):
                 trains = data['data'].to(self.device)
-
                 outputs = None
                 for model in self.model:
                     if outputs == None:
@@ -173,10 +162,5 @@ class basicTrainer():
             return self.labelMaps[1][int(row['species'])]
         df['species'] = df.apply(int2map,axis=1)
         df.to_csv(self.output_path, index=False)
-
-
-
-
-
 
 
