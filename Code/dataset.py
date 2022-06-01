@@ -85,8 +85,7 @@ def getDataset(config):
         return (k_fold_dataset, test_dataset), (label_str2int, label_int2str)
 
 
-def build_train_dev_data(config) -> tuple[
-    list[tuple[Any, int]], list[tuple[Any, int]], dict[int, str], dict[str, int]]:
+def build_train_dev_data(config):
     """
     读入数据，并数据增强，生成一个数据例
 
@@ -139,7 +138,7 @@ def build_train_dev_data(config) -> tuple[
     return data_train, data_dev, label_int2str, label_str2int
 
 
-def build_train_dev_data_k_fold(config) -> tuple[list[list[Any]], dict[int, str], dict[str, int]]:
+def build_train_dev_data_k_fold(config):
     """
     读入数据，并数据增强，生成一组 k fold 数据例
 
@@ -173,8 +172,10 @@ def build_train_dev_data_k_fold(config) -> tuple[list[list[Any]], dict[int, str]
             data.append(pl)  # 本行用于调试，减少 IO 次数
     else:
         for pl in path_label:
-            data.append((trans_with_aug(Image.open(pl[0]).convert('RGB')), pl[1]))
-            data.append((trans_no_aug(Image.open(pl[0]).convert('RGB')), pl[1]))
+            if config.data_augmentation == 'None':
+                data.append((trans_no_aug(Image.open(pl[0]).convert('RGB')), pl[1]))
+            else:
+                data.append((trans_with_aug(Image.open(pl[0]).convert('RGB')), pl[1]))
 
     k = config.fold_k
 
@@ -201,7 +202,7 @@ def build_train_dev_data_k_fold(config) -> tuple[list[list[Any]], dict[int, str]
     return k_fold_data, label_int2str, label_str2int
 
 
-def build_test_data(config) -> list[tuple[Any, str]]:
+def build_test_data(config):
     """
     读入数据，并数据增强，生成一个数据例
 
@@ -225,12 +226,14 @@ def build_test_data(config) -> list[tuple[Any, str]]:
             data.append(pn)  # 本行用于调试，减少 IO 次数
     else:
         for pn in path_name:
-            data.append((trans_with_aug(Image.open(pn[0]).convert('RGB')), pn[1]))
-            data.append((trans_no_aug(Image.open(pn[0]).convert('RGB')), pn[1]))
+            if config.data_augmentation == 'None':
+                data.append((trans_no_aug(Image.open(pn[0]).convert('RGB')), pn[1]))
+            else:
+                data.append((trans_with_aug(Image.open(pn[0]).convert('RGB')), pn[1]))
     return data
 
 
-def data_augment(config) -> tuple[Compose, Compose]:
+def data_augment(config):
     """
     进行数据增强
 
@@ -247,11 +250,11 @@ def data_augment(config) -> tuple[Compose, Compose]:
     if config.data_augmentation == 'None':
         pass
     else:
-        if 'rot' in config.data_augmentation:
-            trans_with_aug.append(transforms.RandomRotation(degrees=(0, 180)))  # 随机旋转
         if 'flp' in config.data_augmentation:
             trans_with_aug.append(transforms.RandomHorizontalFlip())  # 随机水平翻转
-            trans_with_aug.append(transforms.RandomVerticalFlip())  # 随机垂直翻转
+            trans_with_aug.append(transforms.RandomVerticalFlip())    # 随机垂直翻转
+        if 'rot' in config.data_augmentation:
+            trans_with_aug.append(transforms.RandomRotation(degrees=(0, 180)))  # 随机旋转
         if 'pst' in config.data_augmentation:
             trans_with_aug.append(transforms.RandomPosterize(bits=2))  # 随机分色
         if 'slt' in config.data_augmentation:
