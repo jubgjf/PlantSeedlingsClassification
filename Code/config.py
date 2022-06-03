@@ -28,9 +28,8 @@ class config(object):
 
         # 模型保存路径
 
-
-        self.model_saved = [self.save_path + '/models/' + self.model + '_' + '_'.join(self.data_augmentation) +'_' + str(i)+ '.pkl' for i in range(self.fold_k)]
-        self.log_dir = [self.save_path + '/logs/' + self.model + '_' + '_'.join(self.data_augmentation) +'_' + str(i) for i in range(self.fold_k)]
+        self.model_saved = [self.save_path + '/models/' + self.model + '_' + self.data_augmentation + '_' + str(i) + '.pkl' for i in range(self.fold_k)]
+        self.log_dir = [self.save_path + '/logs/' + self.model + '_' + self.data_augmentation + '_' + str(i) for i in range(self.fold_k)]
 
         # 输出路径
-        self.output_path = '../out/' + self.model + '_' + '_'.join(self.data_augmentation) + '_submission.csv'
+        self.output_path = '../out/' + self.model + '_' + self.data_augmentation + '_submission.csv'

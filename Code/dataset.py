@@ -1,8 +1,7 @@
 import os
 import torch.utils.data.dataset as dataset
-from typing import Any
 from PIL import Image
-from torchvision.transforms import transforms, Compose
+from torchvision.transforms import transforms
 from transformers import AutoFeatureExtractor
 
 REDUCE_IO_DEBUG = False  # 调试模式，减少 IO 次数
@@ -118,7 +117,7 @@ def build_train_dev_data(config):
             path_label_dev.append(item)
 
     # 根据 config 进行数据增强
-    trans_with_aug, trans_no_aug = data_augment(config)
+    trans_no_aug, trans_no_flp_aug, trans_v_flp_aug, trans_h_flp_aug, trans_all_flp_aug = data_augment(config)
 
     data_train = []  # data_train 每一项为二元组 (tensor, label)
     data_dev = []  # data_dev 每一项为二元组 (tensor, label)
@@ -129,11 +128,20 @@ def build_train_dev_data(config):
             data_dev.append(pl)  # 本行用于调试，减少 IO 次数
     else:
         for pl in path_label_train:
-            data_train.append((trans_with_aug(Image.open(pl[0]).convert('RGB')), pl[1]))
-            data_train.append((trans_no_aug(Image.open(pl[0]).convert('RGB')), pl[1]))
+            img = Image.open(pl[0]).convert('RGB')
+            if config.data_augmentation == 'none':
+                data_train.append((trans_no_aug(img), pl[1]))
+            else:
+                data_train.append((trans_no_flp_aug(img), pl[1]))
+                data_train.append((trans_v_flp_aug(img), pl[1]))
+                data_train.append((trans_h_flp_aug(img), pl[1]))
+                data_train.append((trans_all_flp_aug(img), pl[1]))
         for pl in path_label_dev:
-            data_dev.append((trans_with_aug(Image.open(pl[0]).convert('RGB')), pl[1]))
-            data_dev.append((trans_no_aug(Image.open(pl[0]).convert('RGB')), pl[1]))
+            img = Image.open(pl[0]).convert('RGB')
+            if config.data_augmentation == 'none':
+                data_dev.append((trans_no_aug(img), pl[1]))
+            else:
+                data_dev.append((trans_no_flp_aug(img), pl[1]))
 
     return data_train, data_dev, label_int2str, label_str2int
 
@@ -164,7 +172,7 @@ def build_train_dev_data_k_fold(config):
             path_label.append((path + label_dir + "/" + image_name, label_int))
 
     # 根据 config 进行数据增强
-    trans_with_aug, trans_no_aug = data_augment(config)
+    trans_no_aug, trans_no_flp_aug, trans_v_flp_aug, trans_h_flp_aug, trans_all_flp_aug = data_augment(config)
 
     data = []  # data 每一项为二元组 (tensor, label)
     if REDUCE_IO_DEBUG:
@@ -172,10 +180,20 @@ def build_train_dev_data_k_fold(config):
             data.append(pl)  # 本行用于调试，减少 IO 次数
     else:
         for pl in path_label:
-            if config.data_augmentation == 'None':
-                data.append((trans_no_aug(Image.open(pl[0]).convert('RGB')), pl[1]))
+            img = Image.open(pl[0]).convert('RGB')
+            if config.data_augmentation == 'none':
+                data.append((trans_no_aug(img), pl[1]))
             else:
-                data.append((trans_with_aug(Image.open(pl[0]).convert('RGB')), pl[1]))
+                data.append((trans_no_flp_aug(img), pl[1]))
+                data.append((trans_v_flp_aug(img), pl[1]))
+                data.append((trans_h_flp_aug(img), pl[1]))
+                data.append((trans_all_flp_aug(img), pl[1]))
+        for pl in path_label:
+            img = Image.open(pl[0]).convert('RGB')
+            if config.data_augmentation == 'none':
+                data.append((trans_no_aug(img), pl[1]))
+            else:
+                data.append((trans_no_flp_aug(img), pl[1]))
 
     k = config.fold_k
 
@@ -218,7 +236,7 @@ def build_test_data(config):
     for image_name in image_names:
         path_name.append((path + image_name, image_name))
 
-    trans_with_aug, trans_no_aug = data_augment(config)
+    trans_no_aug, trans_no_flp_aug, _, _, _ = data_augment(config)
 
     data = []  # data 每一项为二元组 (tensor, name)
     if REDUCE_IO_DEBUG:
@@ -226,10 +244,11 @@ def build_test_data(config):
             data.append(pn)  # 本行用于调试，减少 IO 次数
     else:
         for pn in path_name:
-            if config.data_augmentation == 'None':
-                data.append((trans_no_aug(Image.open(pn[0]).convert('RGB')), pn[1]))
+            img = Image.open(pn[0]).convert('RGB')
+            if config.data_augmentation == 'none':
+                data.append((trans_no_aug(img), pn[1]))
             else:
-                data.append((trans_with_aug(Image.open(pn[0]).convert('RGB')), pn[1]))
+                data.append((trans_no_flp_aug(img), pn[1]))
     return data
 
 
@@ -241,31 +260,52 @@ def data_augment(config):
         config: 模型配置
 
     Returns:
-        返回 (有增强的 transforms.Compose, 没有增强的 transforms.Compose)
+        返回
+        (
+            没有增强的 transform.Compose,
+            带有全部的颜色增强，但是没有翻转的 transform.Compose,
+            带有全部的颜色增强，和垂直翻转的 transform.Compose,
+            带有全部的颜色增强，和水平翻转的 transform.Compose,
+            带有全部的颜色增强，和全部的翻转的 transform.Compose
+        )
     """
 
-    trans_with_aug = []  # 有增强的 transform
     trans_no_aug = []  # 没有增强的 transform
-
-    if config.data_augmentation == 'None':
-        pass
-    else:
-        if 'flp' in config.data_augmentation:
-            trans_with_aug.append(transforms.RandomHorizontalFlip())  # 随机水平翻转
-            trans_with_aug.append(transforms.RandomVerticalFlip())    # 随机垂直翻转
-        if 'rot' in config.data_augmentation:
-            trans_with_aug.append(transforms.RandomRotation(degrees=(0, 180)))  # 随机旋转
-        if 'pst' in config.data_augmentation:
-            trans_with_aug.append(transforms.RandomPosterize(bits=2))  # 随机分色
-        if 'slt' in config.data_augmentation:
-            trans_with_aug.append(transforms.RandomSolarize(threshold=192.0))  # 随机曝光
-    trans_with_aug.append(transforms.Resize((224, 224)))  # 缩放到 224x224
-    trans_with_aug.append(transforms.ToTensor())
+    trans_no_flp_aug = []  # 带有全部的颜色增强，但是没有翻转的 transform
+    trans_v_flp_aug = []  # 带有全部的颜色增强，和垂直翻转的 transform
+    trans_h_flp_aug = []  # 带有全部的颜色增强，和水平翻转的 transform
+    trans_all_flp_aug = []  # 带有全部的颜色增强，和全部的翻转的 transform
 
     trans_no_aug.append(transforms.Resize((224, 224)))  # 缩放到 224x224
     trans_no_aug.append(transforms.ToTensor())
 
-    return transforms.Compose(trans_with_aug), transforms.Compose(trans_no_aug)
+    trans_no_flp_aug.append(transforms.RandomPosterize(bits=2, p=1))  # 分色
+    trans_no_flp_aug.append(transforms.RandomSolarize(threshold=192.0, p=1))  # 曝光
+    trans_no_flp_aug.append(transforms.Resize((224, 224)))  # 缩放到 224x224
+    trans_no_flp_aug.append(transforms.ToTensor())
+
+    trans_v_flp_aug.append(transforms.RandomVerticalFlip(p=1))  # 垂直翻转
+    trans_v_flp_aug.append(transforms.RandomPosterize(bits=2, p=1))  # 分色
+    trans_v_flp_aug.append(transforms.RandomSolarize(threshold=192.0, p=1))  # 曝光
+    trans_v_flp_aug.append(transforms.Resize((224, 224)))  # 缩放到 224x224
+    trans_v_flp_aug.append(transforms.ToTensor())
+
+    trans_h_flp_aug.append(transforms.RandomHorizontalFlip(p=1))  # 水平翻转
+    trans_h_flp_aug.append(transforms.RandomPosterize(bits=2, p=1))  # 分色
+    trans_h_flp_aug.append(transforms.RandomSolarize(threshold=192.0, p=1))  # 曝光
+    trans_h_flp_aug.append(transforms.Resize((224, 224)))  # 缩放到 224x224
+    trans_h_flp_aug.append(transforms.ToTensor())
+
+    trans_all_flp_aug.append(transforms.RandomHorizontalFlip(p=1))  # 水平翻转
+    trans_all_flp_aug.append(transforms.RandomVerticalFlip(p=1))  # 垂直翻转
+    trans_all_flp_aug.append(transforms.RandomPosterize(bits=2, p=1))  # 分色
+    trans_all_flp_aug.append(transforms.RandomSolarize(threshold=192.0, p=1))  # 曝光
+    trans_all_flp_aug.append(transforms.Resize((224, 224)))  # 缩放到 224x224
+    trans_all_flp_aug.append(transforms.ToTensor())
+
+    return transforms.Compose(trans_no_aug), \
+           transforms.Compose(trans_no_flp_aug), transforms.Compose(trans_v_flp_aug), \
+           transforms.Compose(trans_h_flp_aug), transforms.Compose(trans_all_flp_aug)
 
 
 class MyDataset(dataset.Dataset):
